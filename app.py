@@ -37,7 +37,7 @@ st.set_page_config(page_title="SedimentEstimator", layout="wide")
 st.title("SedimentEstimator – uppskatta sedimentvolym i dammar")
 
 with st.sidebar:
-    st.image("tecomatic.png", use_container_width=True)
+    st.image("tecomatic.png", width=220)
     st.header("Så här gör du (MVP)")
     st.markdown(
         """
