@@ -37,7 +37,7 @@ st.set_page_config(page_title="SedimentEstimator", layout="wide")
 st.title("SedimentEstimator – uppskatta sedimentvolym i dammar")
 
 with st.sidebar:
-    st.image("tecomatic.png", width='stretch')
+    st.image("tecomatic.png", use_container_width=True)
     st.header("Så här gör du (MVP)")
     st.markdown(
         """
@@ -178,7 +178,7 @@ if len(points_ll) > 0:
 
     edited = st.data_editor(
         df,
-        width='stretch',
+        use_container_width=True,
         num_rows="fixed",
         hide_index=True,
         column_config={
