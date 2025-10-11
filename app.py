@@ -79,9 +79,35 @@ if "map_center" not in st.session_state:
     st.session_state.map_center = [59.334591, 18.063240]
 
 m = folium.Map(location=st.session_state.map_center, zoom_start=6, control_scale=True)
+st.markdown("""
+<style>
+/* Gör att Draw-actions (Finish/Cancel/Undo) alltid ligger ovanpå och syns på mobil */
+.leaflet-draw-actions {
+  z-index: 10000 !important;
+}
 
+/* Flytta in vänstra kontrollstapeln en aning på små skärmar så inget hamnar utanför */
+@media (max-width: 768px) {
+  .leaflet-control-container .leaflet-left { left: 8px !important; }
+  .leaflet-control-container .leaflet-top { top: 8px !important; }
+}
+
+/* Gör hörnpunkter lättare att träffa med fingret */
+.leaflet-editing-icon {
+  width: 16px !important;
+  height: 16px !important;
+  margin-left: -8px !important;
+  margin-top: -8px !important;
+}
+
+/* Säkerställ att sök/geolokalisering inte ligger ovanpå Draw-actions på mobil */
+.leaflet-top.leaflet-right .leaflet-control {
+  z-index: 500 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 # Sök på kartan (geokodning via Nominatim) – läggs först så den hamnar högst upp
-Geocoder(position='topleft', collapsed=False, add_marker=True).add_to(m)
+Geocoder(position='topleft', collapsed=True, add_marker=True).add_to(m)
 
 # Visa användarens nuvarande position (webbläsarens geolokalisering)
 LocateControl(
