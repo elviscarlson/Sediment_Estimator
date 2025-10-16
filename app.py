@@ -105,7 +105,7 @@ LocateControl(
     strings={'title': 'Visa min position', 'popup': 'Du är här (± noggrannhet)'}
 ).add_to(m)
 
-draw = Draw(
+"""draw = Draw(
     draw_options={
         "polyline": False,
         "rectangle": False,
@@ -137,6 +137,19 @@ draw = Draw(
         }
     },
     position='topleft'
+)"""
+
+draw = Draw(
+    export=True,
+    draw_options={
+        "polyline": False,
+        "rectangle": False,
+        "circle": False,
+        "circlemarker": False,
+        "marker": True,
+        "polygon": True
+    },
+    edit_options={"edit": False, "remove": False}
 )
 
 draw.add_to(m)
