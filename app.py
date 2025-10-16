@@ -10,6 +10,7 @@ import math
 import json
 import pandas as pd
 import io
+import csv  # Lägg till denna import här i toppen!
 
 # === XLSX helper (export till Excel) ===
 def build_points_excel(df_points: pd.DataFrame, report: dict | None = None) -> bytes:
@@ -22,7 +23,6 @@ def build_points_excel(df_points: pd.DataFrame, report: dict | None = None) -> b
                 rep_df = pd.DataFrame({"Nyckel": list(report.keys()), "Värde": list(report.values())})
                 rep_df.to_excel(writer, index=False, sheet_name="Rapport")
     except Exception:
-        # Fallback om xlsxwriter saknas
         with pd.ExcelWriter(buf, engine="openpyxl") as writer:
             df_points.to_excel(writer, index=False, sheet_name="Matpunkter")
             if report is not None:
@@ -83,7 +83,6 @@ m = folium.Map(
     location=st.session_state.map_center, 
     zoom_start=6, 
     control_scale=True,
-    # Använd en mobilanpassad tile-provider
     tiles='OpenStreetMap'
 )
 
@@ -141,13 +140,11 @@ st.markdown("""
         right: 10px !important; 
     }
     
-    /* Ge mer utrymme åt Draw-verktygen */
     .leaflet-draw-toolbar {
         margin-top: 10px !important;
     }
 }
 
-/* Säkerställ att högra kontroller inte överlappar vänstra */
 .leaflet-top.leaflet-right .leaflet-control {
     z-index: 500 !important;
     margin-top: 10px !important;
@@ -157,14 +154,12 @@ st.markdown("""
     z-index: 1000 !important;
 }
 
-/* Förbättra synligheten av polygonen under ritning */
 .leaflet-interactive {
     stroke-width: 3px !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Flytta geocoder och location till höger för att ge Draw-verktygen plats
 Geocoder(
     position='topright', 
     collapsed=True, 
@@ -182,7 +177,6 @@ LocateControl(
     strings={'title': 'Visa min position', 'popup': 'Du är här (± noggrannhet)'}
 ).add_to(m)
 
-# Rita-verktyg med förbättrade inställningar för mobil
 draw = Draw(
     draw_options={
         "polyline": False,
@@ -198,13 +192,11 @@ draw = Draw(
                 "weight": 3,
                 "fillOpacity": 0.2
             },
-            # Viktigt: Tillåt dubbelklick för att stänga polygon
             "drawError": {
                 "color": "#e1e100",
                 "message": "<strong>Obs!</strong> Polygonen korsar sig själv!"
             },
             "icon": None,
-            # Gör det lättare att stänga polygon på mobil
             "touchIcon": None,
             "repeatMode": False
         }
@@ -258,15 +250,12 @@ if output:
                     lat, lon = lon, lat
                 points_ll.append((float(lat), float(lon)))
 
-# Visa hjälptext baserat på skärmstorlek
 st.info("💡 **Mobiltips:** För att stänga polygonen, tryck på den första punkten (grön) eller använd 'Finish'-knappen som dyker upp under verktygsikonerna.")
 
-# Visa punktlista och låt användaren ange djup
 st.subheader("Mätpunkter")
 if len(points_ll) == 0:
     st.info("Lägg ut markörer (mätpunkter) i dammen och ange djup nedan.")
 
-# Deduplicera punkter
 unique_pts = []
 seen = set()
 for lat, lon in points_ll:
@@ -339,7 +328,6 @@ def idw_loocv_rmse_cm(
     p: float,
     _fwd: Transformer,
 ) -> float:
-    """IDW-LOOCV: globalt RMSE (cm) för interpolationen."""
     if len(points_ll_depth_cm) < 2:
         return 0.0
 
@@ -374,7 +362,6 @@ def estimate_neff(
     _fwd: Transformer,
     res_m: float,
 ) -> int:
-    """Skatta effektivt antal oberoende punkter med enkel klustring."""
     pts = []
     for lat, lon, _ in points_ll_depth_cm:
         x, y = _fwd.transform(lon, lat)
@@ -525,10 +512,10 @@ st.download_button("Ladda ner rapport (JSON)", data=rep_json, file_name="sedimen
 
 # Ladda ner mätpunkter som CSV
 csv_buf = io.StringIO()
-writer = csv.writer(csv_buf)
-writer.writerow(["lat", "lon", "djup_cm"])
+csv_writer = csv.writer(csv_buf)  # Ändrat från writer till csv_writer
+csv_writer.writerow(["lat", "lon", "djup_cm"])
 for lat, lon, dcm in point_depths_cm:
-    writer.writerow([lat, lon, dcm])
+    csv_writer.writerow([lat, lon, dcm])
 st.download_button("Ladda ner mätpunkter (CSV)", data=csv_buf.getvalue(), file_name="matpunkter.csv", mime="text/csv")
 
 # Ladda ner rapport + mätpunkter som XLSX
