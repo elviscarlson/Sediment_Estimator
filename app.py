@@ -105,39 +105,7 @@ LocateControl(
     strings={'title': 'Visa min position', 'popup': 'Du är här (± noggrannhet)'}
 ).add_to(m)
 
-"""draw = Draw(
-    draw_options={
-        "polyline": False,
-        "rectangle": False,
-        "circle": False,
-        "circlemarker": False,
-        "marker": True,
-        "polygon": {
-            "allowIntersection": False,
-            "showArea": True,
-            "shapeOptions": {
-                "color": "#b41f1f",
-                "weight": 3,
-                "fillOpacity": 0.2
-            },
-            "drawError": {
-                "color": "#e1e100",
-                "message": "<strong>Obs!</strong> Polygonen korsar sig själv!"
-            },
-            "icon": None,
-            "touchIcon": None,
-            "repeatMode": False
-        }
-    },
-    edit_options={
-        "edit": True, 
-        "remove": True,
-        "poly": {
-            "allowIntersection": False
-        }
-    },
-    position='topleft'
-)"""
+
 
 # Skapa en FeatureGroup för ritningar
 fg = folium.FeatureGroup(name="drawings")
