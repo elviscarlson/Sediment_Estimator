@@ -145,7 +145,7 @@ output = st_folium(
     m, 
     height=600, 
     width=None, 
-    returned_objects=["all_drawings", "last_active_drawing"],
+    returned_objects=["all_drawings"],
     key="folium_map"
 )
 
@@ -160,10 +160,6 @@ if output:
         features = drawings["features"]
     elif isinstance(drawings, list):
         features = drawings
-
-    last_feat = output.get("last_active_drawing")
-    if isinstance(last_feat, dict) and last_feat.get("type") == "Feature":
-        features.append(last_feat)
 
     for feat in features:
         geom = feat.get("geometry", {}) if isinstance(feat, dict) else {}
