@@ -87,78 +87,6 @@ m = folium.Map(
 )
 
 # Förbättrad CSS för mobil-support
-st.markdown("""
-<style>
-/* Gör Draw-kontrollerna mer touch-vänliga */
-.leaflet-draw-toolbar a {
-    width: 40px !important;
-    height: 40px !important;
-    line-height: 40px !important;
-}
-
-/* Större och synligare Finish/Cancel/Delete knappar */
-.leaflet-draw-actions {
-    z-index: 10000 !important;
-}
-
-.leaflet-draw-actions a {
-    height: 36px !important;
-    line-height: 36px !important;
-    padding: 0 12px !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
-}
-
-/* Gör redigerings-handtag större och lättare att trycka på */
-.leaflet-editing-icon {
-    width: 20px !important;
-    height: 20px !important;
-    margin-left: -10px !important;
-    margin-top: -10px !important;
-    border: 3px solid #fff !important;
-    background-color: #b41f1f !important;
-}
-
-/* Första punkten extra stor för att lättare stänga polygonen */
-.leaflet-marker-icon.leaflet-div-icon.leaflet-editing-icon:first-child {
-    width: 24px !important;
-    height: 24px !important;
-    margin-left: -12px !important;
-    margin-top: -12px !important;
-    background-color: #4CAF50 !important;
-}
-
-/* Justera position på mobil */
-@media (max-width: 768px) {
-    .leaflet-control-container .leaflet-left { 
-        left: 10px !important; 
-    }
-    .leaflet-control-container .leaflet-top { 
-        top: 10px !important; 
-    }
-    .leaflet-control-container .leaflet-right { 
-        right: 10px !important; 
-    }
-    
-    .leaflet-draw-toolbar {
-        margin-top: 10px !important;
-    }
-}
-
-.leaflet-top.leaflet-right .leaflet-control {
-    z-index: 500 !important;
-    margin-top: 10px !important;
-}
-
-.leaflet-top.leaflet-left .leaflet-control {
-    z-index: 1000 !important;
-}
-
-.leaflet-interactive {
-    stroke-width: 3px !important;
-}
-</style>
-""", unsafe_allow_html=True)
 
 Geocoder(
     position='topright', 
@@ -250,7 +178,6 @@ if output:
                     lat, lon = lon, lat
                 points_ll.append((float(lat), float(lon)))
 
-st.info("💡 **Mobiltips:** För att stänga polygonen, tryck på den första punkten (grön) eller använd 'Finish'-knappen som dyker upp under verktygsikonerna.")
 
 st.subheader("Mätpunkter")
 if len(points_ll) == 0:
