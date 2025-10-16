@@ -12,8 +12,6 @@ import pandas as pd
 import io
 
 # === XLSX helper (export till Excel) ===
-import pandas as pd  # säkerställ att pd finns här
-
 def build_points_excel(df_points: pd.DataFrame, report: dict | None = None) -> bytes:
     """Bygger en XLSX som innehåller bladet 'Matpunkter' och valfritt 'Rapport'."""
     buf = io.BytesIO()
@@ -47,7 +45,11 @@ with st.sidebar:
         4. Under kartan visas en tabell där du fyller i **sedimentdjup (cm)** för varje punkt.
         5. Klicka **Beräkna** för att få area, volym och en enkel rapport.
 
-        **Tips:** Klicka på geolokalisering‑ikonen (mål‑symbolen) uppe till vänster för att visa **var du är** och centrera kartan där.
+        **Tips för mobil:** 
+        - För att stänga polygonen: Tryck på första punkten ELLER använd "Finish"-knappen
+        - Zooma in för bättre precision vid touchkontroller
+        
+        **Tips:** Klicka på geolokalisering‑ikonen (mål‑symbolen) för att visa **var du är**.
 
         **Antaganden:**
         - Volymen beräknas via ett finmaskigt rutnät (*IDW-interpolation*) inom polygonen.
@@ -75,52 +77,112 @@ with st.sidebar:
 
 # --- Karta ---
 if "map_center" not in st.session_state:
-    # Sverige som start (ungefär mitt)
     st.session_state.map_center = [59.334591, 18.063240]
 
-m = folium.Map(location=st.session_state.map_center, zoom_start=6, control_scale=True)
+m = folium.Map(
+    location=st.session_state.map_center, 
+    zoom_start=6, 
+    control_scale=True,
+    # Använd en mobilanpassad tile-provider
+    tiles='OpenStreetMap'
+)
+
+# Förbättrad CSS för mobil-support
 st.markdown("""
 <style>
-/* Gör att Draw-actions (Finish/Cancel/Undo) alltid ligger ovanpå och syns på mobil */
+/* Gör Draw-kontrollerna mer touch-vänliga */
+.leaflet-draw-toolbar a {
+    width: 40px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+}
+
+/* Större och synligare Finish/Cancel/Delete knappar */
 .leaflet-draw-actions {
-  z-index: 10000 !important;
+    z-index: 10000 !important;
 }
 
-/* Flytta in vänstra kontrollstapeln en aning på små skärmar så inget hamnar utanför */
-@media (max-width: 768px) {
-  .leaflet-control-container .leaflet-left { left: 8px !important; }
-  .leaflet-control-container .leaflet-top { top: 8px !important; }
+.leaflet-draw-actions a {
+    height: 36px !important;
+    line-height: 36px !important;
+    padding: 0 12px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
 }
 
-/* Gör hörnpunkter lättare att träffa med fingret */
+/* Gör redigerings-handtag större och lättare att trycka på */
 .leaflet-editing-icon {
-  width: 16px !important;
-  height: 16px !important;
-  margin-left: -8px !important;
-  margin-top: -8px !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin-left: -10px !important;
+    margin-top: -10px !important;
+    border: 3px solid #fff !important;
+    background-color: #b41f1f !important;
 }
 
-/* Säkerställ att sök/geolokalisering inte ligger ovanpå Draw-actions på mobil */
+/* Första punkten extra stor för att lättare stänga polygonen */
+.leaflet-marker-icon.leaflet-div-icon.leaflet-editing-icon:first-child {
+    width: 24px !important;
+    height: 24px !important;
+    margin-left: -12px !important;
+    margin-top: -12px !important;
+    background-color: #4CAF50 !important;
+}
+
+/* Justera position på mobil */
+@media (max-width: 768px) {
+    .leaflet-control-container .leaflet-left { 
+        left: 10px !important; 
+    }
+    .leaflet-control-container .leaflet-top { 
+        top: 10px !important; 
+    }
+    .leaflet-control-container .leaflet-right { 
+        right: 10px !important; 
+    }
+    
+    /* Ge mer utrymme åt Draw-verktygen */
+    .leaflet-draw-toolbar {
+        margin-top: 10px !important;
+    }
+}
+
+/* Säkerställ att högra kontroller inte överlappar vänstra */
 .leaflet-top.leaflet-right .leaflet-control {
-  z-index: 500 !important;
+    z-index: 500 !important;
+    margin-top: 10px !important;
+}
+
+.leaflet-top.leaflet-left .leaflet-control {
+    z-index: 1000 !important;
+}
+
+/* Förbättra synligheten av polygonen under ritning */
+.leaflet-interactive {
+    stroke-width: 3px !important;
 }
 </style>
 """, unsafe_allow_html=True)
-# Sök på kartan (geokodning via Nominatim) – läggs först så den hamnar högst upp
-Geocoder(position='topleft', collapsed=True, add_marker=True).add_to(m)
 
-# Visa användarens nuvarande position (webbläsarens geolokalisering)
+# Flytta geocoder och location till höger för att ge Draw-verktygen plats
+Geocoder(
+    position='topright', 
+    collapsed=True, 
+    add_marker=True,
+    placeholder='Sök plats...'
+).add_to(m)
+
 LocateControl(
-    position='topleft',
+    position='topright',
     auto_start=False,
     flyTo=True,
-    keepCurrentZoomLevel=True,
+    keepCurrentZoomLevel=False,
     drawCircle=True,
     showPopup=True,
     strings={'title': 'Visa min position', 'popup': 'Du är här (± noggrannhet)'}
 ).add_to(m)
 
-# Rita-verktyg (polygon + markör)
+# Rita-verktyg med förbättrade inställningar för mobil
 draw = Draw(
     draw_options={
         "polyline": False,
@@ -131,19 +193,45 @@ draw = Draw(
         "polygon": {
             "allowIntersection": False,
             "showArea": True,
-            "shapeOptions": {"color": "#b41f1f"}
+            "shapeOptions": {
+                "color": "#b41f1f",
+                "weight": 3,
+                "fillOpacity": 0.2
+            },
+            # Viktigt: Tillåt dubbelklick för att stänga polygon
+            "drawError": {
+                "color": "#e1e100",
+                "message": "<strong>Obs!</strong> Polygonen korsar sig själv!"
+            },
+            "icon": None,
+            # Gör det lättare att stänga polygon på mobil
+            "touchIcon": None,
+            "repeatMode": False
         }
     },
-    edit_options={"edit": True, "remove": True}
+    edit_options={
+        "edit": True, 
+        "remove": True,
+        "poly": {
+            "allowIntersection": False
+        }
+    },
+    position='topleft'
 )
 
 draw.add_to(m)
 
-output = st_folium(m, height=600, width=None, returned_objects=["all_drawings", "last_active_drawing"])  # type: ignore(m, height=600, width=None, returned_objects=["all_drawings", "last_active_drawing"])  # type: ignore
+output = st_folium(
+    m, 
+    height=600, 
+    width=None, 
+    returned_objects=["all_drawings", "last_active_drawing"],
+    key="folium_map"
+)
 
 # --- Hämta geometrier ---
 polygon_geojson = None
-points_ll = []  # (lat, lon)
+points_ll = []
 
 if output:
     drawings = output.get("all_drawings")
@@ -153,33 +241,32 @@ if output:
     elif isinstance(drawings, list):
         features = drawings
 
-    # Även fånga senaste aktiva ritningen som enskilt feature
     last_feat = output.get("last_active_drawing")
     if isinstance(last_feat, dict) and last_feat.get("type") == "Feature":
         features.append(last_feat)
 
-    # Gå igenom features och plocka polygoner samt punktmarkörer
     for feat in features:
         geom = feat.get("geometry", {}) if isinstance(feat, dict) else {}
         gtype = geom.get("type")
         if gtype == "Polygon":
-            polygon_geojson = feat  # behåll den senast ritade polygonen
+            polygon_geojson = feat
         elif gtype == "Point":
-            coords = geom.get("coordinates", [])  # GeoJSON: [lon, lat]
+            coords = geom.get("coordinates", [])
             if isinstance(coords, (list, tuple)) and len(coords) >= 2:
                 lon, lat = coords[0], coords[1]
-                # ibland kommer coords som [lat, lon] – heuristik: lat ∈ [-90,90]
                 if abs(lon) <= 90 and abs(lat) <= 180:
-                    # troligen [lat, lon], byt plats
                     lat, lon = lon, lat
                 points_ll.append((float(lat), float(lon)))
+
+# Visa hjälptext baserat på skärmstorlek
+st.info("💡 **Mobiltips:** För att stänga polygonen, tryck på den första punkten (grön) eller använd 'Finish'-knappen som dyker upp under verktygsikonerna.")
 
 # Visa punktlista och låt användaren ange djup
 st.subheader("Mätpunkter")
 if len(points_ll) == 0:
     st.info("Lägg ut markörer (mätpunkter) i dammen och ange djup nedan.")
 
-# Deduplicera punkter (kan annars komma dubletter via last_active_drawing/all_drawings)
+# Deduplicera punkter
 unique_pts = []
 seen = set()
 for lat, lon in points_ll:
@@ -189,11 +276,9 @@ for lat, lon in points_ll:
         unique_pts.append((lat, lon))
 points_ll = unique_pts
 
-# Behåll tidigare ifyllda värden per koordinat (stabil default även om index skiftar)
 if "depth_by_coord" not in st.session_state:
     st.session_state.depth_by_coord = {}
 
-# Bygg redigerbar tabell för perfekt linjering
 if len(points_ll) > 0:
     rows = []
     for lat, lon in points_ll:
@@ -215,14 +300,11 @@ if len(points_ll) > 0:
         key="points_table",
     )
 
-    # Ladda ner nuvarande mätpunkter som XLSX
-    #xlsx_bytes_points = build_points_excel(edited)
-    #st.download_button("Ladda ner mätpunkter (XLSX)", data=xlsx_bytes_points, file_name="matpunkter.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    # Läs tillbaka värden + uppdatera session-state
     point_depths_cm = []
     for _, r in edited.iterrows():
-        lat = float(r["Latitud"]) ; lon = float(r["Longitud"]) ; dcm = float(r["Djup (cm)"] or 0.0)
+        lat = float(r["Latitud"])
+        lon = float(r["Longitud"])
+        dcm = float(r["Djup (cm)"] or 0.0)
         coord_key = f"{lat:.6f}_{lon:.6f}"
         st.session_state.depth_by_coord[coord_key] = dcm
         point_depths_cm.append((lat, lon, dcm))
@@ -230,8 +312,6 @@ else:
     point_depths_cm = []
 
 # --- Hjälpfunktioner ---
-
-
 
 def pick_utm_epsg(lat: float, lon: float) -> int:
     zone = int((lon + 180) // 6) + 1
@@ -247,7 +327,7 @@ def to_utm_transformer(lat: float, lon: float):
 
 @st.cache_data(show_spinner=False)
 def polygon_area_m2(polygon_gj: dict) -> tuple[float, Polygon, Transformer]:
-    poly = shape(polygon_gj["geometry"])  # lon/lat
+    poly = shape(polygon_gj["geometry"])
     lon, lat = poly.representative_point().x, poly.representative_point().y
     epsg, fwd, _ = to_utm_transformer(lat, lon)
     poly_m = shp_transform(lambda x, y, z=None: fwd.transform(x, y), poly)
@@ -257,13 +337,12 @@ def polygon_area_m2(polygon_gj: dict) -> tuple[float, Polygon, Transformer]:
 def idw_loocv_rmse_cm(
     points_ll_depth_cm: list[tuple[float, float, float]],
     p: float,
-    _fwd: Transformer,   # <- underscore!
+    _fwd: Transformer,
 ) -> float:
     """IDW-LOOCV: globalt RMSE (cm) för interpolationen."""
     if len(points_ll_depth_cm) < 2:
         return 0.0
 
-    # Projicera med _fwd
     xy = []
     dcm = []
     for lat, lon, d_cm in points_ll_depth_cm:
@@ -289,12 +368,10 @@ def idw_loocv_rmse_cm(
 
     return float(np.sqrt(np.mean(np.square(errs)))) if errs else 0.0
 
-
-
 @st.cache_data(show_spinner=False)
 def estimate_neff(
     points_ll_depth_cm: list[tuple[float, float, float]],
-    _fwd: Transformer,    # <- underscore!
+    _fwd: Transformer,
     res_m: float,
 ) -> int:
     """Skatta effektivt antal oberoende punkter med enkel klustring."""
@@ -326,42 +403,34 @@ def estimate_neff(
     comps = len({find(i) for i in range(n)})
     return max(1, comps)
 
-
-
 @st.cache_data(show_spinner=False)
 def idw_volume(points_ll_depth_cm: list[tuple[float, float, float]], polygon_gj: dict, p: float, target_cells: int):
-    # Bygg polygon i UTM
     area_m2, poly_m, fwd = polygon_area_m2(polygon_gj)
     if area_m2 <= 0:
         return 0.0, area_m2, 0.0, None
 
-    # Projektera punkter till UTM
     pts_m = []
     for lat, lon, d_cm in points_ll_depth_cm:
         x, y = fwd.transform(lon, lat)
-        pts_m.append((x, y, d_cm / 100.0))  # meter
+        pts_m.append((x, y, d_cm / 100.0))
 
     if len(pts_m) == 0:
         return 0.0, area_m2, 0.0, None
 
-    # Rutnätsupplösning: välj så att antal celler ≈ target_cells
     minx, miny, maxx, maxy = poly_m.bounds
     bbox_area = (maxx - minx) * (maxy - miny)
-    cell_area_target = max(bbox_area / target_cells, 0.25)  # minst 0.5 m x 0.5 m
+    cell_area_target = max(bbox_area / target_cells, 0.25)
     res = math.sqrt(cell_area_target)
-    res = min(max(res, 0.5), 5.0)  # clamp 0.5–5 m grid
+    res = min(max(res, 0.5), 5.0)
 
     nx = int(math.ceil((maxx - minx) / res))
     ny = int(math.ceil((maxy - miny) / res))
 
-    # IDW över rutnätet
     xs = np.linspace(minx + res/2, minx + res/2 + (nx-1)*res, nx)
     ys = np.linspace(miny + res/2, miny + res/2 + (ny-1)*res, ny)
 
     vol = 0.0
     cell_area = res * res
-
-    # För en grov "sektioneringskarta" lagra närmaste punktindex per cell (valfritt)
     nearest_idx = np.full((ny, nx), -1, dtype=int)
 
     pts_xy = np.array([(x, y) for x, y, _ in pts_m])
@@ -371,12 +440,10 @@ def idw_volume(points_ll_depth_cm: list[tuple[float, float, float]], polygon_gj:
         for i, x in enumerate(xs):
             if not poly_m.contains(Point(x, y)):
                 continue
-            # Avstånd till alla punkter
             dx = pts_xy[:, 0] - x
             dy = pts_xy[:, 1] - y
             dist = np.hypot(dx, dy)
 
-            # Hantera exakt träff på en punkt (dist=0)
             if np.any(dist == 0):
                 d = pts_d[dist == 0][0]
                 nearest_idx[j, i] = int(np.where(dist == 0)[0][0])
@@ -392,7 +459,7 @@ def idw_volume(points_ll_depth_cm: list[tuple[float, float, float]], polygon_gj:
 # --- Beräkning ---
 col_a, col_b = st.columns([1, 1])
 with col_a:
-    calc = st.button("Beräkna volym")
+    calc = st.button("Beräkna volym", type="primary", use_container_width=True)
 
 report = {}
 if calc:
@@ -406,38 +473,37 @@ if calc:
         st.success("Klart!")
 
         mean_depth = vol_m3 / area_m2 if area_m2 > 0 else 0.0
-                # --- Felmarginaler (95% CI) ---
+        
         ci_depth = None
         ci_vol = None
         rmse_interp_cm = 0.0
+        neff = 0
+        
         if include_uncert:
-            # Hämta transformer för punkt→meter-proj (LOOCV och n_eff)
             _, _, fwd = polygon_area_m2(polygon_geojson)
             rmse_interp_cm = idw_loocv_rmse_cm(point_depths_cm, default_power, fwd) if use_loocv else 0.0
-            # Kombinera instrumentfel och interpolationsfel (cm)
             sigma_point_cm = float(np.hypot(meas_sigma_cm, rmse_interp_cm))
-            # Effektivt antal punkter (klustrat)
             neff = estimate_neff(point_depths_cm, fwd, res_m)
-            # SE för medeldjup (m)
             se_mean_depth_m = (sigma_point_cm / 100.0) / math.sqrt(max(1, neff))
             delta = 1.96 * se_mean_depth_m
             ci_depth = (max(0.0, mean_depth - delta), mean_depth + delta)
             ci_vol = (ci_depth[0] * area_m2, ci_depth[1] * area_m2)
 
         report = {
-            "Dammens area (m²)": area_m2,
-            "Beräknad volym sediment (m³)": vol_m3,
-            "Beräknat medeldjup (m)": mean_depth,
-            "Rutnätsupplösning (m)": res_m,
+            "Dammens area (m²)": float(area_m2),
+            "Beräknad volym sediment (m³)": float(vol_m3),
+            "Beräknat medeldjup (m)": float(mean_depth),
+            "Rutnätsupplösning (m)": float(res_m),
             "Antal mätpunkter": len(point_depths_cm),
         }
+        
         if include_uncert:
             report.update({
                 "Mätosäkerhet σ (cm)": float(meas_sigma_cm),
                 "Interpolations-RMSE (cm)": float(rmse_interp_cm),
                 "Effektivt antal punkter (n_eff)": int(neff),
-                "95% CI medeldjup (m)": ci_depth,
-                "95% CI volym (m³)": ci_vol,
+                "95% CI medeldjup (m)": f"{ci_depth[0]:.2f}–{ci_depth[1]:.2f}" if ci_depth else "N/A",
+                "95% CI volym (m³)": f"{ci_vol[0]:,.0f}–{ci_vol[1]:,.0f}" if ci_vol else "N/A",
             })
 
         st.subheader("Resultat")
@@ -453,13 +519,11 @@ if calc:
             if include_uncert and ci_vol:
                 st.caption(f"95% CI volym: {ci_vol[0]:,.0f}–{ci_vol[1]:,.0f} m³")
 
-
-        # Ladda ner rapport som JSON
-rep_json = json.dumps(report, indent=2)
+# Ladda ner rapport som JSON
+rep_json = json.dumps(report, indent=2, ensure_ascii=False)
 st.download_button("Ladda ner rapport (JSON)", data=rep_json, file_name="sediment_rapport.json", mime="application/json")
 
 # Ladda ner mätpunkter som CSV
-import csv
 csv_buf = io.StringIO()
 writer = csv.writer(csv_buf)
 writer.writerow(["lat", "lon", "djup_cm"])
@@ -468,8 +532,9 @@ for lat, lon, dcm in point_depths_cm:
 st.download_button("Ladda ner mätpunkter (CSV)", data=csv_buf.getvalue(), file_name="matpunkter.csv", mime="text/csv")
 
 # Ladda ner rapport + mätpunkter som XLSX
-points_df_for_xlsx = pd.DataFrame(point_depths_cm, columns=["Latitud", "Longitud", "Djup (cm)"])
-xlsx_bytes_full = build_points_excel(points_df_for_xlsx, report=report)
-st.download_button("Ladda ner rapport + mätpunkter (XLSX)", data=xlsx_bytes_full, file_name="sediment_berakning.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+if len(point_depths_cm) > 0:
+    points_df_for_xlsx = pd.DataFrame(point_depths_cm, columns=["Latitud", "Longitud", "Djup (cm)"])
+    xlsx_bytes_full = build_points_excel(points_df_for_xlsx, report=report)
+    st.download_button("Ladda ner rapport + mätpunkter (XLSX)", data=xlsx_bytes_full, file_name="sediment_berakning.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-st.caption("MVP v0.1 – Leaflet/Folium + IDW. Byggd för fältbruk med Streamlit.")
+st.caption("MVP v0.2 – Leaflet/Folium + IDW. Byggd för fältbruk med Streamlit.")
