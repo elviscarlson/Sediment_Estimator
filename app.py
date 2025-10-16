@@ -159,8 +159,7 @@ output = st_folium(
     height=600, 
     width=None, 
     returned_objects=["all_drawings"],
-    key="folium_map",
-    feature_group_to_add=None
+    key="folium_map"
 )
 
 # --- Hämta geometrier ---
