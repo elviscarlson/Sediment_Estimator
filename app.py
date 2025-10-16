@@ -139,25 +139,33 @@ LocateControl(
     position='topleft'
 )"""
 
-draw = Draw(
-    export=True,
-    draw_options={
-        "polyline": False,
-        "rectangle": False,
-        "circle": False,
-        "circlemarker": False,
-        "marker": True,
-        "polygon": True
-    },
-    edit_options={"edit": False, "remove": False}
-)
+# Skapa en FeatureGroup för ritningar
+fg = folium.FeatureGroup(name="drawings")
+fg.add_to(m)
 
-draw.add_to(m)
+# Lägg till Draw plugin direkt på feature group
+from folium.plugins import Draw
+Draw(
+    export=False,
+    position='topleft',
+    draw_options={
+        'polyline': False,
+        'rectangle': False, 
+        'circle': False,
+        'circlemarker': False,
+        'marker': True,
+        'polygon': {
+            'allowIntersection': False,
+            'showArea': True
+        }
+    }
+).add_to(fg)
 
 output = st_folium(
     m, 
     height=600, 
-    width=None, 
+    width=None,
+    feature_group_to_add=fg,
     returned_objects=["all_drawings"],
     key="folium_map"
 )
